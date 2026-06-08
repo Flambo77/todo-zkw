@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taken — ContourdeTwern</title>
+<link href="https://fonts.googleapis.com/css2?family=Bitter:wght@400;600;700&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+  :root {
+    --geel: #F5BE14; --geel-dark: #DFAA15;
+    --oranje: #F5871E; --oranje-dark: #d96d0a;
+    --rood: #E60000; --rood-dark: #A83238;
+    --grijs-licht: #DBD7CA; --grijs-mid: #C5C1B4; --grijs-donker: #726E67;
+    --wit: #FFFFFF; --bg: #F7F5F0;
+    --tekst: #2a2520; --tekst-zacht: #726E67;
+    --hoog: #E60000; --midden: #F5BE14; --laag: #4a9e8e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Source Sans 3', sans-serif; background: var(--bg); color: var(--tekst); min-height: 100vh; font-size: 15px; line-height: 1.5; }
+
+  /* HEADER */
+  .header { background: var(--wit); border-bottom: 3px solid var(--geel); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .logo { font-family: 'Source Sans 3', sans-serif; font-weight: 300; font-size: 1.1rem; color: var(--tekst); letter-spacing: 0.02em; flex-shrink: 0; }
+  .logo strong { font-weight: 700; color: var(--rood); }
+  .logo em { font-style: normal; color: var(--oranje); }
+  .header-right { display: flex; align-items: center; gap: 0.75rem; position: relative; }
+
+  /* BUTTONS */
+  .btn { font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; border: none; padding: 0.5rem 1.25rem; border-radius: 4px; transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.375rem; }
+  .btn-geel { background: var(--geel); color: #000; } .btn-geel:hover { background: var(--geel-dark); }
+  .btn-rood { background: var(--rood); color: #fff; } .btn-rood:hover { background: var(--rood-dark); }
+  .btn-oranje { background: var(--oranje); color: #fff; } .btn-oranje:hover { background: var(--oranje-dark); }
+  .btn-outline { background: transparent; border: 1.5px solid var(--grijs-mid); color: var(--tekst-zacht); } .btn-outline:hover { border-color: var(--grijs-donker); color: var(--tekst); }
+  .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+
+  /* USER DROPDOWN */
+  .user-trigger { display: flex; align-items: center; gap: 0.5rem; background: var(--bg); border: 1.5px solid var(--grijs-mid); border-radius: 6px; padding: 0.4rem 0.875rem 0.4rem 0.5rem; cursor: pointer; font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; font-weight: 600; color: var(--tekst); transition: border-color 0.15s; user-select: none; }
+  .user-trigger:hover { border-color: var(--oranje); }
+  .user-trigger .chevron { font-size: 0.65rem; color: var(--grijs-donker); margin-left: 0.25rem; }
+  .no-user-label { color: var(--tekst-zacht); font-weight: 400; }
+  .user-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; }
+
+  .dropdown { position: absolute; top: calc(100% + 8px); right: 0; background: var(--wit); border: 1.5px solid var(--grijs-licht); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 260px; display: none; z-index: 200; overflow: hidden; }
+  .dropdown.open { display: block; animation: fadeUp 0.15s ease; }
+  .dropdown-section { padding: 0.75rem 0; border-bottom: 1px solid var(--grijs-licht); }
+  .dropdown-section:last-child { border-bottom: none; }
+  .dropdown-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--tekst-zacht); font-weight: 600; padding: 0 1rem 0.5rem; display: block; }
+  .dropdown-user { display: flex; align-items: center; gap: 0.625rem; width: 100%; background: transparent; border: none; padding: 0.5rem 1rem; cursor: pointer; font-family: 'Source Sans 3', sans-serif; font-size: 0.9rem; color: var(--tekst); transition: background 0.1s; text-align: left; }
+  .dropdown-user:hover { background: var(--bg); }
+  .dropdown-user.active { background: #FFF3CC; font-weight: 600; }
+  .dropdown-user .u-count { margin-left: auto; font-size: 0.75rem; color: var(--tekst-zacht); font-weight: 400; }
+  .dropdown-add { padding: 0.75rem 1rem; display: flex; gap: 0.5rem; }
+  .dropdown-add input { flex: 1; background: var(--bg); border: 1.5px solid var(--grijs-mid); border-radius: 4px; padding: 0.4rem 0.75rem; font-family: 'Source Sans 3', sans-serif; font-size: 0.85rem; color: var(--tekst); outline: none; transition: border-color 0.15s; }
+  .dropdown-add input:focus { border-color: var(--oranje); }
+  .dropdown-add input::placeholder { color: var(--grijs-donker); }
+
+  /* LAYOUT */
+  .layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 64px); }
+
+  /* SIDEBAR */
+  .sidebar { background: var(--wit); border-right: 1px solid var(--grijs-licht); padding: 1.5rem 1.25rem; display: flex; flex-direction: column; gap: 1.75rem; }
+  .sidebar-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--tekst-zacht); font-weight: 600; margin-bottom: 0.5rem; }
+  .filter-list { display: flex; flex-direction: column; gap: 2px; }
+  .filter-btn { background: transparent; border: none; border-radius: 4px; color: var(--tekst-zacht); padding: 0.45rem 0.75rem; font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; cursor: pointer; text-align: left; display: flex; align-items: center; justify-content: space-between; transition: all 0.12s; }
+  .filter-btn:hover { background: var(--bg); color: var(--tekst); }
+  .filter-btn.active { background: #FFF3CC; color: var(--tekst); font-weight: 600; border-left: 3px solid var(--geel); padding-left: calc(0.75rem - 3px); }
+  .filter-count { background: var(--grijs-licht); color: var(--grijs-donker); border-radius: 10px; padding: 0.1rem 0.45rem; font-size: 0.68rem; font-weight: 600; min-width: 20px; text-align: center; }
+  .filter-btn.active .filter-count { background: var(--geel); color: #000; }
+  .priority-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.4rem; }
+
+  /* MAIN */
+  .main { padding: 2rem; }
+  .main-top { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .search-wrap { display: flex; align-items: center; background: var(--wit); border: 1.5px solid var(--grijs-mid); border-radius: 4px; padding: 0 0.875rem; gap: 0.5rem; flex: 1; max-width: 380px; transition: border-color 0.15s; }
+  .search-wrap:focus-within { border-color: var(--oranje); }
+  .search-wrap input { border: none; background: transparent; padding: 0.5rem 0; font-size: 0.9rem; font-family: 'Source Sans 3', sans-serif; color: var(--tekst); outline: none; width: 100%; }
+  .search-wrap input::placeholder { color: var(--grijs-donker); }
+  .search-icon { color: var(--grijs-donker); font-size: 1rem; }
+
+  /* FORM */
+  .add-form { background: var(--wit); border-radius: 8px; border: 1.5px solid var(--grijs-licht); border-left: 4px solid var(--oranje); padding: 1.5rem; margin-bottom: 1.5rem; display: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .add-form.open { display: block; animation: fadeUp 0.2s ease; }
+  .form-title { font-family: 'Bitter', serif; font-size: 1rem; font-weight: 600; color: var(--oranje); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .form-grid-1 { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+  .field label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--tekst-zacht); font-weight: 600; margin-bottom: 0.35rem; }
+  input[type="text"], input[type="date"], select { font-family: 'Source Sans 3', sans-serif; font-size: 0.9rem; color: var(--tekst); background: var(--wit); border: 1.5px solid var(--grijs-mid); border-radius: 4px; padding: 0.5rem 0.875rem; outline: none; transition: border-color 0.15s; width: 100%; }
+  input:focus, select:focus { border-color: var(--oranje); }
+  input::placeholder { color: var(--grijs-donker); }
+  select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23726E67'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; cursor: pointer; }
+  input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; }
+  .form-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+  /* TAKEN */
+  .sectie-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; margin-top: 1.75rem; }
+  .sectie-header:first-child { margin-top: 0; }
+  .sectie-naam { font-family: 'Bitter', serif; font-size: 0.85rem; font-weight: 600; color: var(--tekst-zacht); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; }
+  .sectie-lijn { flex: 1; height: 1px; background: var(--grijs-licht); }
+  .taak-lijst { display: flex; flex-direction: column; gap: 0.4rem; }
+  .taak-item { background: var(--wit); border-radius: 6px; border: 1.5px solid var(--grijs-licht); border-left: 4px solid var(--grijs-mid); display: flex; align-items: flex-start; gap: 0.875rem; padding: 0.875rem 1rem; transition: box-shadow 0.15s; }
+  .taak-item.hoog { border-left-color: var(--hoog); }
+  .taak-item.midden { border-left-color: var(--midden); }
+  .taak-item.laag { border-left-color: var(--laag); }
+  .taak-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .taak-item.done { opacity: 0.5; }
+  .taak-item.done .taak-naam { text-decoration: line-through; color: var(--tekst-zacht); }
+  .taak-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--grijs-mid); background: transparent; cursor: pointer; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; transition: all 0.15s; }
+  .taak-check:hover { border-color: var(--oranje); }
+  .taak-check.checked { background: var(--oranje); border-color: var(--oranje); color: #fff; }
+  .taak-body { flex: 1; min-width: 0; }
+  .taak-naam { font-size: 0.95rem; font-weight: 600; color: var(--tekst); margin-bottom: 0.35rem; word-break: break-word; }
+  .taak-meta { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+  .badge { font-size: 0.67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.15rem 0.5rem; border-radius: 3px; }
+  .badge-hoog { background: #FFE5E5; color: var(--hoog); }
+  .badge-midden { background: #FFF6CC; color: #8a6500; }
+  .badge-laag { background: #E5F5F3; color: #2d7a6d; }
+  .meta-chip { font-size: 0.78rem; color: var(--tekst-zacht); display: flex; align-items: center; gap: 0.3rem; }
+  .meta-chip.overdue { color: var(--rood); font-weight: 600; }
+  .meta-chip.today { color: #8a6500; font-weight: 600; }
+  .assignee-badge { display: flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; color: var(--tekst-zacht); }
+  .mini-avatar { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.58rem; font-weight: 700; flex-shrink: 0; }
+  .taak-acties { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.15s; }
+  .taak-item:hover .taak-acties { opacity: 1; }
+  .icon-btn { width: 28px; height: 28px; border-radius: 4px; background: transparent; border: 1px solid var(--grijs-licht); color: var(--tekst-zacht); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; transition: all 0.12s; }
+  .icon-btn:hover { background: var(--bg); border-color: var(--grijs-mid); color: var(--tekst); }
+  .icon-btn.del:hover { background: #FFE5E5; border-color: var(--hoog); color: var(--hoog); }
+  .empty { text-align: center; padding: 4rem 2rem; color: var(--tekst-zacht); }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.4; }
+  .empty-text { font-size: 0.9rem; font-weight: 600; }
+
+  /* MODALS */
+  .overlay { position: fixed; inset: 0; background: rgba(42,37,32,0.5); display: none; align-items: center; justify-content: center; z-index: 300; backdrop-filter: blur(3px); }
+  .overlay.open { display: flex; }
+  .modal { background: var(--wit); border-radius: 8px; border-top: 4px solid var(--rood); padding: 2rem; width: 100%; max-width: 480px; animation: fadeUp 0.2s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+  .modal-title { font-family: 'Bitter', serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 1.25rem; color: var(--rood); }
+  .modal-actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem; }
+
+  /* ADMIN */
+  .admin-overlay { position: fixed; inset: 0; background: rgba(42,37,32,0.6); display: none; align-items: flex-start; justify-content: center; z-index: 400; backdrop-filter: blur(3px); padding: 2rem; overflow-y: auto; }
+  .admin-overlay.open { display: flex; }
+  .admin-panel { background: var(--wit); border-radius: 8px; border-top: 4px solid var(--geel); width: 100%; max-width: 900px; animation: fadeUp 0.2s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+  .admin-header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 2rem; border-bottom: 1px solid var(--grijs-licht); }
+  .admin-title { font-family: 'Bitter', serif; font-size: 1.2rem; font-weight: 700; color: var(--tekst); }
+  .admin-title span { color: var(--geel-dark); }
+  .admin-filters { display: flex; gap: 0.5rem; align-items: center; padding: 1rem 2rem; border-bottom: 1px solid var(--grijs-licht); flex-wrap: wrap; }
+  .admin-filter-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--tekst-zacht); font-weight: 600; }
+  .admin-select { font-family: 'Source Sans 3', sans-serif; font-size: 0.85rem; color: var(--tekst); background: var(--bg); border: 1.5px solid var(--grijs-mid); border-radius: 4px; padding: 0.375rem 2rem 0.375rem 0.75rem; outline: none; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23726E67'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.6rem center; }
+  .admin-select:focus { border-color: var(--oranje); }
+  .admin-table-wrap { padding: 1.5rem 2rem; overflow-x: auto; max-height: 60vh; overflow-y: auto; }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .admin-table th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--tekst-zacht); font-weight: 600; text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--grijs-licht); white-space: nowrap; position: sticky; top: 0; background: var(--wit); }
+  .admin-table td { padding: 0.625rem 0.75rem; border-bottom: 1px solid var(--grijs-licht); vertical-align: middle; }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-table tr:hover td { background: var(--bg); }
+  .admin-empty { text-align: center; padding: 2rem; color: var(--tekst-zacht); font-size: 0.875rem; }
+  .admin-footer { display: flex; align-items: center; justify-content: space-between; padding: 1rem 2rem; border-top: 1px solid var(--grijs-licht); background: var(--bg); border-radius: 0 0 8px 8px; }
+  .admin-count { font-size: 0.8rem; color: var(--tekst-zacht); }
+
+
+  /* ADMIN LOGIN */
+  .admin-login-overlay { position: fixed; inset: 0; background: rgba(42,37,32,0.7); display: none; align-items: center; justify-content: center; z-index: 500; backdrop-filter: blur(4px); }
+  .admin-login-overlay.open { display: flex; }
+  .admin-login-box { background: var(--wit); border-radius: 8px; border-top: 4px solid var(--geel); padding: 2rem; width: 100%; max-width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); animation: fadeUp 0.2s ease; }
+  .admin-login-title { font-family: 'Bitter', serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 0.375rem; }
+  .admin-login-sub { font-size: 0.8rem; color: var(--tekst-zacht); margin-bottom: 1.25rem; }
+  .admin-pw-wrap { position: relative; margin-bottom: 1rem; }
+  .admin-pw-wrap input { padding-right: 2.5rem; }
+  .admin-pw-toggle { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--grijs-donker); font-size: 1rem; padding: 0; line-height: 1; }
+  .admin-error { font-size: 0.8rem; color: var(--rood); margin-bottom: 0.875rem; display: none; }
+  .admin-error.show { display: block; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @media (max-width: 768px) { .layout { grid-template-columns: 1fr; } .sidebar { border-right: none; border-bottom: 1px solid var(--grijs-licht); } .form-grid-3 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">contour<strong>de</strong><em>twern</em> &nbsp;·&nbsp; Taken</div>
+  <div class="header-right">
+    <button class="btn btn-rood btn-sm" onclick="toggleForm()">+ Nieuwe taak</button>
+    <button class="btn btn-outline btn-sm" onclick="openAdmin()" style="border-color:var(--geel-dark);color:var(--geel-dark)">⚙ Admin</button>
+    <div class="user-trigger" onclick="toggleDropdown()" id="user-trigger">
+      <span class="user-avatar" id="h-avatar" style="background:#eee;color:#999">?</span>
+      <span id="h-naam" class="no-user-label">Kies persoon</span>
+      <span class="chevron">▼</span>
+    </div>
+    <div class="dropdown" id="dropdown">
+      <div class="dropdown-section">
+        <span class="dropdown-label">Persoon kiezen</span>
+        <div id="dropdown-users"></div>
+        <button class="dropdown-user" id="niemand-btn" onclick="kiesNiemand()">
+          <span style="color:var(--tekst-zacht)">— Niemand geselecteerd —</span>
+        </button>
+      </div>
+      <div class="dropdown-section">
+        <span class="dropdown-label">Persoon toevoegen</span>
+        <div class="dropdown-add">
+          <input type="text" id="new-user-input" placeholder="Naam..." maxlength="24">
+          <button class="btn btn-geel btn-sm" onclick="addUser()">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div>
+      <div class="sidebar-title">Weergave</div>
+      <div class="filter-list">
+        <button class="filter-btn active" onclick="setFilter('all',this)">Alle open taken <span class="filter-count" id="c-all">0</span></button>
+      </div>
+    </div>
+    <div>
+      <div class="sidebar-title">Prioriteit</div>
+      <div class="filter-list">
+        <button class="filter-btn" onclick="setFilter('hoog',this)"><span><span class="priority-dot" style="background:var(--hoog)"></span>Hoog</span><span class="filter-count" id="c-hoog">0</span></button>
+        <button class="filter-btn" onclick="setFilter('midden',this)"><span><span class="priority-dot" style="background:var(--midden)"></span>Midden</span><span class="filter-count" id="c-midden">0</span></button>
+        <button class="filter-btn" onclick="setFilter('laag',this)"><span><span class="priority-dot" style="background:var(--laag)"></span>Laag</span><span class="filter-count" id="c-laag">0</span></button>
+      </div>
+    </div>
+    <div>
+      <div class="sidebar-title">Personen</div>
+      <div class="filter-list" id="personen-lijst"></div>
+    </div>
+
+  </aside>
+
+  <main class="main">
+    <div class="main-top">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="zoek" placeholder="Zoeken in taken..." oninput="S.zoekterm=this.value;render();document.getElementById('reset-zoek-btn').style.display=S.zoekterm?'inline-flex':'none'" onkeydown="if(event.key==='Enter'){S.zoekterm=this.value;this.value='';render();this.blur();}">
+      </div>
+      <button class="btn btn-outline btn-sm" id="reset-zoek-btn" onclick="resetZoek()" style="display:none">Alle taken</button>
+    </div>
+
+    <div class="add-form" id="add-form">
+      <div class="form-title">Nieuwe taak toevoegen</div>
+      <div class="form-grid-1">
+        <div class="field"><label>Taaknaam *</label><input type="text" id="t-naam" placeholder="Omschrijf de taak..."></div>
+      </div>
+      <div class="form-grid-3">
+        <div class="field"><label>Prioriteit</label>
+          <select id="t-prio"><option value="midden">Midden</option><option value="hoog">Hoog</option><option value="laag">Laag</option></select>
+        </div>
+        <div class="field"><label>Deadline</label><input type="date" id="t-dead"></div>
+        <div class="field"><label>Toewijzen aan</label><select id="t-assign"></select></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-outline" onclick="toggleForm()">Annuleren</button>
+        <button class="btn btn-oranje" onclick="addTaak()">Opslaan</button>
+      </div>
+    </div>
+
+    <div id="taak-container"></div>
+  </main>
+</div>
+
+<!-- ADMIN WACHTWOORD -->
+<div class="admin-login-overlay" id="admin-login-overlay">
+  <div class="admin-login-box">
+    <div class="admin-login-title">⚙ Admin toegang</div>
+    <div class="admin-login-sub">Voer het beheerderswachtwoord in</div>
+    <div class="admin-error" id="admin-error">Wachtwoord onjuist. Probeer opnieuw.</div>
+    <div class="admin-pw-wrap">
+      <input type="password" id="admin-pw-input" placeholder="Wachtwoord..." autocomplete="off" onkeydown="if(event.key==='Enter') checkAdminPw()">
+      <button class="admin-pw-toggle" onclick="togglePwVis()" id="pw-toggle">👁</button>
+    </div>
+    <div style="display:flex;gap:0.5rem;justify-content:flex-end">
+      <button class="btn btn-outline btn-sm" onclick="sluitAdminLogin()">Annuleren</button>
+      <button class="btn btn-geel btn-sm" onclick="checkAdminPw()">Inloggen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div class="admin-overlay" id="admin-overlay">
+  <div class="admin-panel">
+    <div class="admin-header">
+      <div class="admin-title">⚙ Admin <span>· Taakoverzicht</span></div>
+      <button class="btn btn-outline btn-sm" onclick="sluitAdmin()">✕ Sluiten</button>
+    </div>
+    <div class="admin-filters">
+      <span class="admin-filter-label">Status:</span>
+      <select class="admin-select" id="af-status" onchange="renderAdmin()">
+        <option value="all">Alle taken</option>
+        <option value="done">Afgerond</option>
+        <option value="open">Open</option>
+      </select>
+      <span class="admin-filter-label" style="margin-left:0.75rem">Persoon:</span>
+      <select class="admin-select" id="af-persoon" onchange="renderAdmin()">
+        <option value="all">Iedereen</option>
+      </select>
+      <span class="admin-filter-label" style="margin-left:0.75rem">Prioriteit:</span>
+      <select class="admin-select" id="af-prio" onchange="renderAdmin()">
+        <option value="all">Alle</option>
+        <option value="hoog">Hoog</option>
+        <option value="midden">Midden</option>
+        <option value="laag">Laag</option>
+      </select>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead><tr><th>Taak</th><th>Prioriteit</th><th>Toegewezen aan</th><th>Deadline</th><th>Status</th><th>Afgehandeld door</th></tr></thead>
+        <tbody id="admin-tbody"></tbody>
+      </table>
+      <div id="admin-empty" class="admin-empty" style="display:none">Geen taken gevonden</div>
+    </div>
+    <div class="admin-footer">
+      <span class="admin-count" id="admin-count"></span>
+      <button class="btn btn-geel btn-sm" onclick="exportCSV()">↓ Exporteer Excel</button>
+    </div>
+  </div>
+</div>
+
+<!-- AFHANDEL MODAL -->
+<div class="overlay" id="afhandel-modal">
+  <div class="modal" style="max-width:360px;border-top-color:var(--oranje)">
+    <div class="modal-title" style="color:var(--oranje)">✓ Afgehandeld door...</div>
+    <div id="afhandel-user-list" style="display:flex;flex-direction:column;gap:0.375rem;margin-bottom:0.5rem"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="sluitAfhandel()">Annuleren</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-title">Taak bewerken</div>
+    <div class="form-grid-1" style="margin-bottom:0.75rem">
+      <div class="field"><label>Taaknaam</label><input type="text" id="e-naam"></div>
+    </div>
+    <div class="form-grid-3">
+      <div class="field"><label>Prioriteit</label>
+        <select id="e-prio"><option value="hoog">Hoog</option><option value="midden">Midden</option><option value="laag">Laag</option></select>
+      </div>
+      <div class="field"><label>Deadline</label><input type="date" id="e-dead"></div>
+      <div class="field"><label>Toewijzen aan</label><select id="e-assign"></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="sluitModal()">Annuleren</button>
+      <button class="btn btn-rood" onclick="slaOpEdit()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var S = { users: [], tasks: [], deleted: [], current: null, filter: 'all', editId: null, afhandelId: null, zoekterm: '' };
+var KLEUREN = ['#E60000','#F5871E','#2d7a6d','#5b6bbf','#a83298','#2d8a5e','#c45e00','#1a6b8a'];
+
+function kleur(n) { var i=0; for(var j=0;j<n.length;j++) i+=n.charCodeAt(j); return KLEUREN[i%KLEUREN.length]; }
+function ini(n) { return n.trim().split(/\s+/).map(function(x){return x[0];}).join('').toUpperCase().slice(0,2); }
+function genId() { return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function vandaag() { return new Date().toISOString().split('T')[0]; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── FIREBASE ────────────────────────────────────────────
+var DB_URL = 'https://taken-zuiderkwartier-default-rtdb.europe-west1.firebasedatabase.app';
+var firebaseConfig = { databaseURL: DB_URL };
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+var dbRef = db.ref('taken_app');
+
+function opslaan() {
+  dbRef.set({ users: S.users, tasks: S.tasks, deleted: S.deleted });
+}
+
+function laden() {
+  // Toon laad-indicator
+  document.getElementById('taak-container').innerHTML =
+    '<div class="empty"><div class="empty-icon" style="font-size:1.5rem;animation:spin 1s linear infinite">◌</div><div class="empty-text">Verbinden met database...</div></div>';
+
+  dbRef.on('value', function(snapshot) {
+    var d = snapshot.val() || {};
+    S.users   = Array.isArray(d.users)   ? d.users   : [];
+    S.tasks   = Array.isArray(d.tasks)   ? d.tasks   : [];
+    S.deleted = Array.isArray(d.deleted) ? d.deleted : [];
+    renderAll();
+  }, function(error) {
+    document.getElementById('taak-container').innerHTML =
+      '<div class="empty"><div class="empty-icon">⚠</div><div class="empty-text">Verbinding mislukt. Controleer internet.</div></div>';
+  });
+}
+
+// ── DROPDOWN ────────────────────────────────────────────
+function toggleDropdown() { document.getElementById('dropdown').classList.toggle('open'); }
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.header-right')) document.getElementById('dropdown').classList.remove('open');
+});
+
+function renderDropdown() {
+  var el = document.getElementById('dropdown-users');
+  el.innerHTML = '';
+  S.users.forEach(function(u) {
+    var n = S.tasks.filter(function(t){ return t.assign===u && !t.done; }).length;
+    var c = kleur(u);
+    var btn = document.createElement('button');
+    btn.className = 'dropdown-user' + (S.current===u ? ' active' : '');
+    btn.onclick = function(){ kiesUser(u); };
+    btn.innerHTML = '<span class="user-avatar" style="width:22px;height:22px;font-size:0.6rem;background:'+c+'22;color:'+c+'">'+ini(u)+'</span>'+esc(u)+'<span class="u-count">'+n+' open</span>';
+    el.appendChild(btn);
+  });
+  document.getElementById('niemand-btn').className = 'dropdown-user' + (!S.current ? ' active' : '');
+}
+
+function kiesUser(naam) {
+  S.current = naam;
+  var c = kleur(naam);
+  var av = document.getElementById('h-avatar');
+  av.style.background = c+'22'; av.style.color = c; av.textContent = ini(naam);
+  var hn = document.getElementById('h-naam');
+  hn.textContent = naam; hn.classList.remove('no-user-label');
+  document.getElementById('dropdown').classList.remove('open');
+  renderAll();
+}
+
+function kiesNiemand() {
+  S.current = null;
+  var av = document.getElementById('h-avatar');
+  av.style.background='#eee'; av.style.color='#999'; av.textContent='?';
+  var hn = document.getElementById('h-naam');
+  hn.textContent='Kies persoon'; hn.classList.add('no-user-label');
+  document.getElementById('dropdown').classList.remove('open');
+  renderAll();
+}
+
+function addUser() {
+  var inp = document.getElementById('new-user-input');
+  var naam = inp.value.trim();
+  if (!naam || S.users.indexOf(naam) !== -1) { inp.value=''; return; }
+  S.users.push(naam);
+  opslaan(); inp.value='';
+  renderDropdown(); renderSidebar(); vulSelects();
+}
+
+document.getElementById('new-user-input').addEventListener('keydown', function(e){ if(e.key==='Enter') addUser(); });
+
+// ── FILTERS ─────────────────────────────────────────────
+function setFilter(f, el) {
+  S.filter = f;
+  document.querySelectorAll('.filter-btn').forEach(function(b){ b.classList.remove('active'); });
+  el.classList.add('active');
+  render();
+}
+
+// ── FORM ────────────────────────────────────────────────
+function toggleForm() {
+  var f = document.getElementById('add-form');
+  f.classList.toggle('open');
+  if (f.classList.contains('open')) {
+    vulSelects();
+    if (S.current) document.getElementById('t-assign').value = S.current;
+    document.getElementById('t-naam').focus();
+  }
+}
+
+function vulSelects() {
+  ['t-assign', 'e-assign'].forEach(function(id) {
+    var s = document.getElementById(id);
+    if (!s) return;
+    var prev = s.value;
+    s.innerHTML = '<option value="">— Niemand —</option>';
+    S.users.forEach(function(u) {
+      var o = document.createElement('option');
+      o.value = u; o.textContent = u;
+      s.appendChild(o);
+    });
+    if (prev) s.value = prev;
+  });
+}
+
+function addTaak() {
+  var naam = document.getElementById('t-naam').value.trim();
+  if (!naam) { document.getElementById('t-naam').focus(); return; }
+  S.tasks.unshift({
+    id: genId(),
+    naam: naam,
+    prio: document.getElementById('t-prio').value,
+    dead: document.getElementById('t-dead').value,
+    assign: document.getElementById('t-assign').value,
+    aangemaakt: S.current || '',
+    done: false,
+    afgehandeldDoor: '',
+    ts: Date.now()
+  });
+  opslaan();
+  document.getElementById('t-naam').value = '';
+  document.getElementById('t-dead').value = '';
+  document.getElementById('t-prio').value = 'midden';
+  document.getElementById('t-assign').value = '';
+  document.getElementById('add-form').classList.remove('open');
+  renderAll();
+}
+
+document.getElementById('t-naam').addEventListener('keydown', function(e){ if(e.key==='Enter') addTaak(); });
+
+// ── AFVINKEN ─────────────────────────────────────────────
+function toggleDone(id) {
+  var t = S.tasks.find(function(x){ return x.id===id; });
+  if (!t) return;
+  if (t.done) {
+    t.done = false; t.afgehandeldDoor = ''; t.afgehandeldOp = '';
+    opslaan(); renderAll();
+  } else {
+    S.afhandelId = id;
+    var list = document.getElementById('afhandel-user-list');
+    list.innerHTML = '';
+    S.users.forEach(function(u) {
+      var c = kleur(u);
+      var btn = document.createElement('button');
+      btn.className = 'dropdown-user';
+      btn.style.cssText = 'border-radius:6px;border:1.5px solid var(--grijs-licht);margin-bottom:2px';
+      btn.onclick = function(){ bevestigAfhandel(u); };
+      btn.innerHTML = '<span class="user-avatar" style="width:28px;height:28px;font-size:0.7rem;background:'+c+'22;color:'+c+'">'+ini(u)+'</span>'+esc(u);
+      list.appendChild(btn);
+    });
+    document.getElementById('afhandel-modal').classList.add('open');
+  }
+}
+
+function bevestigAfhandel(naam) {
+  var t = S.tasks.find(function(x){ return x.id===S.afhandelId; });
+  if (t) { t.done=true; t.afgehandeldDoor=naam; t.afgehandeldOp=vandaag(); opslaan(); renderAll(); }
+  sluitAfhandel();
+}
+
+function sluitAfhandel() {
+  document.getElementById('afhandel-modal').classList.remove('open');
+  S.afhandelId = null;
+}
+
+// ── VERWIJDEREN ──────────────────────────────────────────
+function delTaak(id) {
+  var t = S.tasks.find(function(x){ return x.id===id; });
+  if (t) {
+    var kopie = JSON.parse(JSON.stringify(t));
+    kopie.verwijderd = true;
+    kopie.verwijderdOp = vandaag();
+    S.deleted.push(kopie);
+  }
+  S.tasks = S.tasks.filter(function(x){ return x.id!==id; });
+  opslaan(); renderAll();
+}
+
+// ── BEWERKEN ─────────────────────────────────────────────
+function openEdit(id) {
+  var t = S.tasks.find(function(x){ return x.id===id; });
+  if (!t) return;
+  S.editId = id;
+  document.getElementById('e-naam').value = t.naam;
+  document.getElementById('e-prio').value = t.prio;
+  document.getElementById('e-dead').value = t.dead || '';
+  vulSelects();
+  document.getElementById('e-assign').value = t.assign || '';
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function sluitModal() { document.getElementById('edit-modal').classList.remove('open'); S.editId=null; }
+
+function slaOpEdit() {
+  var t = S.tasks.find(function(x){ return x.id===S.editId; });
+  if (!t) return;
+  var nieuweNaam = document.getElementById('e-naam').value.trim();
+  if (nieuweNaam) t.naam = nieuweNaam;
+  t.prio   = document.getElementById('e-prio').value;
+  t.dead   = document.getElementById('e-dead').value;
+  t.assign = document.getElementById('e-assign').value;
+  opslaan(); sluitModal(); renderAll();
+}
+
+document.getElementById('edit-modal').addEventListener('click', function(e){ if(e.target===this) sluitModal(); });
+document.getElementById('afhandel-modal').addEventListener('click', function(e){ if(e.target===this) sluitAfhandel(); });
+document.getElementById('admin-overlay').addEventListener('click', function(e){ if(e.target===this) sluitAdmin(); });
+
+// ── RENDER TAKEN ──────────────────────────────────────────
+function gefilterd() {
+  var td = vandaag();
+  var q  = (S.zoekterm || '').toLowerCase();
+  return S.tasks.filter(function(t) {
+    if (q && t.naam.toLowerCase().indexOf(q) === -1) return false;
+    if (t.done) return false; // alleen open taken
+    if (S.filter === 'hoog')   return t.prio === 'hoog';
+    if (S.filter === 'midden') return t.prio === 'midden';
+    if (S.filter === 'laag')   return t.prio === 'laag';
+    if (S.filter.indexOf('persoon:') === 0) return t.assign === S.filter.slice(8);
+    return true;
+  });
+}
+
+function renderTaak(t) {
+  var td = vandaag();
+  var dead = '';
+  if (t.dead) {
+    var cls='meta-chip', lbl=t.dead;
+    if (!t.done && t.dead < td) { cls+=' overdue'; lbl='⚠ '+lbl; }
+    else if (t.dead === td)     { cls+=' today';   lbl='● Vandaag'; }
+    dead = '<span class="'+cls+'">📅 '+lbl+'</span>';
+  }
+  var ass = '';
+  if (t.assign) {
+    var c = kleur(t.assign);
+    ass = '<span class="assignee-badge"><span class="mini-avatar" style="background:'+c+'22;color:'+c+'">'+ini(t.assign)+'</span>'+esc(t.assign)+'</span>';
+  }
+  var afg = (t.done && t.afgehandeldDoor)
+    ? '<span class="meta-chip" style="color:var(--laag);font-weight:600">✓ '+esc(t.afgehandeldDoor)+'</span>'
+    : '';
+  return '<div class="taak-item '+t.prio+(t.done?' done':'')+'">'+
+    '<div class="taak-check '+(t.done?'checked':'')+'" onclick="toggleDone(\''+t.id+'\')">'+(t.done?'✓':'')+'</div>'+
+    '<div class="taak-body">'+
+      '<div class="taak-naam">'+esc(t.naam)+'</div>'+
+      '<div class="taak-meta">'+
+        '<span class="badge badge-'+t.prio+'">'+t.prio+'</span>'+
+        dead+ass+afg+
+      '</div>'+
+    '</div>'+
+    '<div class="taak-acties">'+
+      '<button class="icon-btn" onclick="openEdit(\''+t.id+'\')" title="Bewerken">✎</button>'+
+      '<button class="icon-btn del" onclick="delTaak(\''+t.id+'\')" title="Verwijderen">✕</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function render() {
+  var taken = gefilterd();
+  var con   = document.getElementById('taak-container');
+  if (!taken.length) {
+    con.innerHTML = '<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Geen taken gevonden</div></div>';
+    return;
+  }
+  var open = taken;
+  open.sort(function(a,b){
+    var aHasDead = a.dead ? 1 : 0;
+    var bHasDead = b.dead ? 1 : 0;
+    // taken met deadline altijd boven taken zonder deadline
+    if (aHasDead !== bHasDead) return bHasDead - aHasDead;
+    // beide hebben deadline: chronologisch
+    if (a.dead && b.dead) return a.dead.localeCompare(b.dead);
+    // beide zonder deadline: op aanmaakdatum
+    return b.ts - a.ts;
+  });
+  con.innerHTML = open.length
+    ? '<div class="taak-lijst">'+open.map(renderTaak).join('')+'</div>'
+    : '<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">Geen open taken</div></div>';
+}
+
+function renderSidebar() {
+  var tasks = S.tasks;
+  var openTaken = tasks.filter(function(t){ return !t.done; });
+  var tabel = [
+    ['all',    openTaken.length],
+    ['hoog',   openTaken.filter(function(t){ return t.prio==='hoog'; }).length],
+    ['midden', openTaken.filter(function(t){ return t.prio==='midden'; }).length],
+    ['laag',   openTaken.filter(function(t){ return t.prio==='laag'; }).length]
+  ];
+  tabel.forEach(function(p){ var el=document.getElementById('c-'+p[0]); if(el) el.textContent=p[1]; });
+
+  // Personen met open taaktellingen
+  var el = document.getElementById('personen-lijst');
+  if (!el) return;
+  el.innerHTML = '';
+  S.users.forEach(function(u) {
+    var n = openTaken.filter(function(t){ return t.assign === u; }).length;
+    var c = kleur(u);
+    var actief = S.filter === 'persoon:' + u;
+    var btn = document.createElement('button');
+    btn.className = 'filter-btn' + (actief ? ' active' : '');
+    btn.onclick = function() {
+      document.querySelectorAll('.filter-btn').forEach(function(b){ b.classList.remove('active'); });
+      if (S.filter === 'persoon:' + u) {
+        S.filter = 'all';
+        var allBtn = document.querySelector('.filter-btn[onclick*="'all'"]');
+        if (allBtn) allBtn.classList.add('active');
+      } else {
+        S.filter = 'persoon:' + u;
+        btn.classList.add('active');
+      }
+      render();
+    };
+    btn.innerHTML =
+      '<span style="display:flex;align-items:center;gap:0.5rem">'+
+      '<span class="mini-avatar" style="width:22px;height:22px;font-size:0.62rem;background:'+c+'22;color:'+c+'">'+ini(u)+'</span>'+
+      esc(u)+'</span>'+
+      '<span class="filter-count">'+n+'</span>';
+    el.appendChild(btn);
+  });
+}
+
+function resetZoek() {
+  S.zoekterm = '';
+  document.getElementById('zoek').value = '';
+  document.getElementById('reset-zoek-btn').style.display = 'none';
+  render();
+}
+
+function renderAll() { renderDropdown(); renderSidebar(); render(); }
+
+// ── ADMIN ─────────────────────────────────────────────────
+var ADMIN_HASH = '07a19e08d21b1fd9666cb80137d2a827c5e927c552e3269ea983ee9613d4c021';
+var ADMIN_SALT = 'CdT_2024_admin';
+
+function openAdmin() {
+  document.getElementById('admin-pw-input').value = '';
+  document.getElementById('admin-error').classList.remove('show');
+  document.getElementById('admin-login-overlay').classList.add('open');
+  setTimeout(function(){ document.getElementById('admin-pw-input').focus(); }, 100);
+}
+
+function sluitAdminLogin() {
+  document.getElementById('admin-login-overlay').classList.remove('open');
+}
+
+function togglePwVis() {
+  var inp = document.getElementById('admin-pw-input');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  document.getElementById('pw-toggle').textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+function checkAdminPw() {
+  var pw = document.getElementById('admin-pw-input').value;
+  if (!pw) return;
+  var encoder = new TextEncoder();
+  var data = encoder.encode(ADMIN_SALT + pw);
+  crypto.subtle.digest('SHA-256', data).then(function(buf) {
+    var hash = Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
+    if (hash === ADMIN_HASH) {
+      document.getElementById('admin-login-overlay').classList.remove('open');
+      openAdminPanel();
+    } else {
+      document.getElementById('admin-error').classList.add('show');
+      document.getElementById('admin-pw-input').value = '';
+      document.getElementById('admin-pw-input').focus();
+    }
+  });
+}
+
+function openAdminPanel() {
+  var ps = document.getElementById('af-persoon');
+  ps.innerHTML = '<option value="all">Iedereen</option>';
+  S.users.forEach(function(u){
+    var o=document.createElement('option'); o.value=u; o.textContent=u; ps.appendChild(o);
+  });
+  renderAdmin();
+  document.getElementById('admin-overlay').classList.add('open');
+}
+
+function sluitAdmin() { document.getElementById('admin-overlay').classList.remove('open'); }
+
+function adminGefilterd() {
+  var status  = document.getElementById('af-status').value;
+  var persoon = document.getElementById('af-persoon').value;
+  var prio    = document.getElementById('af-prio').value;
+  return S.tasks.filter(function(t) {
+    if (status==='done' && !t.done) return false;
+    if (status==='open' &&  t.done) return false;
+    if (persoon!=='all' && t.assign!==persoon && t.afgehandeldDoor!==persoon) return false;
+    if (prio!=='all' && t.prio!==prio) return false;
+    return true;
+  });
+}
+
+function renderAdmin() {
+  var actief     = adminGefilterd();
+  var status     = document.getElementById('af-status').value;
+  var verwijderd = (status === 'open') ? [] :
+    S.deleted.map(function(t){ return Object.assign({}, t, {_del:true}); });
+  var taken      = actief.concat(verwijderd);
+  var tbody     = document.getElementById('admin-tbody');
+  var empty     = document.getElementById('admin-empty');
+  var count     = document.getElementById('admin-count');
+  var td        = vandaag();
+  var pk        = { hoog:'badge-hoog', midden:'badge-midden', laag:'badge-laag' };
+
+  count.textContent = actief.length + ' taken' + (verwijderd.length ? ' + '+verwijderd.length+' verwijderd' : '');
+
+  if (!taken.length) { tbody.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = taken.map(function(t) {
+    var deadlbl   = t.dead || '—';
+    var deadstijl = (!t.done && t.dead && t.dead<td) ? 'color:var(--rood);font-weight:600' : (t.dead===td ? 'color:#8a6500;font-weight:600' : '');
+    var statusHtml = t.done ? '<span style="color:var(--laag);font-weight:600">✓ Gedaan</span>' : '<span style="color:var(--tekst-zacht)">Open</span>';
+    var afgHtml    = (t.done && t.afgehandeldDoor) ? '<strong>'+esc(t.afgehandeldDoor)+'</strong>' : '<span style="color:var(--grijs-mid)">—</span>';
+    return '<tr'+(t._del?' style="opacity:0.45"':'')+'>'+
+      '<td style="font-weight:600">'+esc(t.naam)+(t._del?' <span style="font-size:0.68rem;color:var(--rood);font-weight:400">[verwijderd]</span>':'')+'</td>'+
+      '<td><span class="badge '+pk[t.prio]+'">'+t.prio+'</span></td>'+
+      '<td>'+(t.assign ? esc(t.assign) : '<span style="color:var(--grijs-mid)">—</span>')+'</td>'+
+      '<td style="'+deadstijl+'">'+deadlbl+'</td>'+
+      '<td>'+statusHtml+'</td>'+
+      '<td>'+afgHtml+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function exportCSV() {
+  var actief     = adminGefilterd();
+  var verwijderd = S.deleted;
+  var alleTaken  = actief.concat(verwijderd);
+
+  // ── Tabblad 1: Taken ──
+  var koptaken = ['Taak','Prioriteit','Toegewezen aan','Deadline','Status','Afgehandeld door','Datum afgehandeld','Verwijderd'];
+  var rijentaken = [koptaken];
+  actief.forEach(function(t){
+    rijentaken.push([t.naam, t.prio, t.assign||'', t.dead||'', t.done?'Afgerond':'Open', t.afgehandeldDoor||'', t.afgehandeldOp||'', '']);
+  });
+  verwijderd.forEach(function(t){
+    rijentaken.push([t.naam, t.prio, t.assign||'', t.dead||'', t.done?'Afgerond':'Open', t.afgehandeldDoor||'', t.afgehandeldOp||'', 'ja']);
+  });
+
+  // ── Tabblad 2: Samenvatting per persoon ──
+  var kopsamen = ['Persoon','Taken afgehandeld','Taken toegewezen','Taken open','Verwijderd (toegewezen)'];
+  var rijensamen = [kopsamen];
+  var personen = S.users.slice();
+  alleTaken.forEach(function(t){
+    if (t.afgehandeldDoor && personen.indexOf(t.afgehandeldDoor)===-1) personen.push(t.afgehandeldDoor);
+    if (t.assign && personen.indexOf(t.assign)===-1) personen.push(t.assign);
+  });
+  personen.forEach(function(p){
+    rijensamen.push([
+      p,
+      alleTaken.filter(function(t){ return t.done && t.afgehandeldDoor===p; }).length,
+      actief.filter(function(t){ return t.assign===p; }).length,
+      actief.filter(function(t){ return t.assign===p && !t.done; }).length,
+      verwijderd.filter(function(t){ return t.assign===p; }).length
+    ]);
+  });
+  var totAfg  = alleTaken.filter(function(t){ return t.done && t.afgehandeldDoor; }).length;
+  var totOpen = actief.filter(function(t){ return !t.done; }).length;
+  rijensamen.push(['TOTAAL', totAfg, actief.length, totOpen, verwijderd.length]);
+
+  // ── Opmaak helper ──
+  var geelFill  = { patternType:'solid', fgColor:{ rgb:'F5BE14' } };
+  var oranjeFill = { patternType:'solid', fgColor:{ rgb:'F5871E' } };
+  var lichtFill  = { patternType:'solid', fgColor:{ rgb:'F7F5F0' } };
+  var totaalFill = { patternType:'solid', fgColor:{ rgb:'DFAA15' } };
+  var kopStijl  = { font:{ bold:true, color:{ rgb:'000000' }, sz:11 }, fill:geelFill, alignment:{ horizontal:'center', vertical:'center' }, border:{ bottom:{ style:'thin', color:{ rgb:'DFAA15' } } } };
+  var kopStijl2 = { font:{ bold:true, color:{ rgb:'FFFFFF' }, sz:11 }, fill:oranjeFill, alignment:{ horizontal:'center', vertical:'center' } };
+  var rijStijl  = { font:{ sz:10 }, fill:lichtFill };
+  var rijStijlWit = { font:{ sz:10 } };
+  var totaalStijl = { font:{ bold:true, sz:11 }, fill:totaalFill, alignment:{ horizontal:'left' } };
+
+  function maakSheet(rijen, kopstijl) {
+    var ws = {};
+    var bereik = { s:{r:0,c:0}, e:{r:rijen.length-1,c:rijen[0].length-1} };
+    rijen.forEach(function(rij, ri) {
+      rij.forEach(function(val, ci) {
+        var cel = { v: val };
+        cel.t = (typeof val === 'number') ? 'n' : 's';
+        if (ri === 0) {
+          cel.s = kopstijl;
+        } else if (ri === rijen.length-1 && rijen[ri][0]==='TOTAAL') {
+          cel.s = totaalStijl;
+        } else {
+          cel.s = (ri % 2 === 0) ? rijStijl : rijStijlWit;
+        }
+        ws[XLSX.utils.encode_cell({r:ri,c:ci})] = cel;
+      });
+    });
+    ws['!ref'] = XLSX.utils.encode_range(bereik);
+    // kolombreedtes
+    ws['!cols'] = rijen[0].map(function(_, ci) {
+      var max = 10;
+      rijen.forEach(function(r){ var v=String(r[ci]||''); if(v.length>max) max=v.length; });
+      return { wch: Math.min(max+2, 40) };
+    });
+    // rijhoogte header
+    ws['!rows'] = [{ hpt: 22 }];
+    return ws;
+  }
+
+  var wb = XLSX.utils.book_new();
+  wb.Props = { Title:'Taken ContourdeTwern', Author:'CdT' };
+  XLSX.utils.book_append_sheet(wb, maakSheet(rijentaken, kopStijl), 'Taken');
+  XLSX.utils.book_append_sheet(wb, maakSheet(rijensamen, kopStijl2), 'Samenvatting');
+
+  XLSX.writeFile(wb, 'taken-export-'+vandaag()+'.xlsx');
+}
+
+laden(); // Firebase listener roept renderAll() aan
+</script>
+</body>
+</html>
